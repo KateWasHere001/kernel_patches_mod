@@ -1,5 +1,5 @@
---- fs/proc/task_mmu.c	2025-12-22 23:26:13.996978396 +0800
-+++ fs/proc/task_mmu.c	2025-12-22 23:28:05.793545186 +0800
+--- a/fs/proc/task_mmu.c	2025-12-22 23:26:13.996978396 +0800
++++ b/fs/proc/task_mmu.c	2025-12-22 23:28:05.793545186 +0800
 @@ -324,6 +324,114 @@
  extern void susfs_sus_ino_for_show_map_vma(unsigned long ino, dev_t *out_dev, unsigned long *out_ino);
  #endif
