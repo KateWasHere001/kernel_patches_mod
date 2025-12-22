@@ -1,10 +1,9 @@
---- a/fs/proc/task_mmu.c	2025-11-03 11:13:23.889942211 +0800
-+++ b/fs/proc/task_mmu.c	2025-11-03 11:14:12.962187838 +0800
-@@ -324,6 +324,108 @@
+--- fs/proc/task_mmu.c	2025-12-22 23:26:13.996978396 +0800
++++ fs/proc/task_mmu.c	2025-12-22 23:28:05.793545186 +0800
+@@ -324,6 +324,114 @@
  extern void susfs_sus_ino_for_show_map_vma(unsigned long ino, dev_t *out_dev, unsigned long *out_ino);
  #endif
  
-+
 +char locase_a(char c)
 +{
 +    if ((c >= 'A') && (c <= 'Z'))
@@ -97,6 +96,7 @@
 +	// /data/app/~~eagFJDNq6CpiuHvdXlVkew==/com.wuxianlian.xp_on_tongcheng-j4X93g2Qi5RYYfJNfZXLWw==/base.apk
 +	// /data/adb/modules/zygisk_lsposed/zygisk/arm64-v8a.so
 +	// frida.so
++	// gadget.so
 +
 +	for (i = 0; i < target_count; i++) {
 +		if (_strstri_a(path, m_szTarget_list[i]) != NULL) {
@@ -115,7 +115,7 @@
  static void
  show_map_vma(struct seq_file *m, struct vm_area_struct *vma)
  {
-@@ -336,6 +438,26 @@
+@@ -336,6 +444,26 @@
  	dev_t dev = 0;
  	const char *name = NULL;
  
@@ -142,11 +142,3 @@
  	if (file) {
  		struct inode *inode = file_inode(vma->vm_file);
  #ifdef CONFIG_KSU_SUSFS_SUS_MAP
-@@ -353,6 +475,7 @@
- 			seq_put_hex_ll(m, ":", MINOR(dev), 2);
- 			seq_put_decimal_ull(m, " ", ino);
- 			seq_putc(m, ' ');
-+			printk(KERN_INFO "SELF_MAP with SUSFS inner function is done\n");
- 			goto done;
- 		}
- #endif
