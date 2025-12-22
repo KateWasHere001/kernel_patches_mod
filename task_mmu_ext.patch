@@ -97,7 +97,6 @@
 +	// /data/app/~~eagFJDNq6CpiuHvdXlVkew==/com.wuxianlian.xp_on_tongcheng-j4X93g2Qi5RYYfJNfZXLWw==/base.apk
 +	// /data/adb/modules/zygisk_lsposed/zygisk/arm64-v8a.so
 +	// frida.so
-+	// gadget.so
 +
 +	for (i = 0; i < target_count; i++) {
 +		if (_strstri_a(path, m_szTarget_list[i]) != NULL) {
