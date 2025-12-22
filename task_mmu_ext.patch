@@ -1,0 +1,153 @@
+--- a/fs/proc/task_mmu.c	2025-11-03 11:13:23.889942211 +0800
++++ b/fs/proc/task_mmu.c	2025-11-03 11:14:12.962187838 +0800
+@@ -324,6 +324,108 @@
+ extern void susfs_sus_ino_for_show_map_vma(unsigned long ino, dev_t *out_dev, unsigned long *out_ino);
+ #endif
+ 
++
++char locase_a(char c)
++{
++    if ((c >= 'A') && (c <= 'Z'))
++        return c + 0x20;
++    else
++        return c;
++}
++
++char *_strstri_a(const char *s, const char *sub_s)
++{
++	char c0, c1, c2, *tmps, *tmpsub;
++
++	if (s == sub_s)
++		return (char *)s;
++
++	if (s == 0)
++		return 0;
++
++	if (sub_s == 0)
++		return 0;
++
++	c0 = locase_a(*sub_s);
++	while (c0 != 0) {
++
++		while (*s != 0) {
++			c2 = locase_a(*s);
++			if (c2 == c0)
++				break;
++			s++;
++		}
++
++		if (*s == 0)
++			return 0;
++
++		tmps = (char *)s;
++		tmpsub = (char *)sub_s;
++		do {
++			c1 = locase_a(*tmps);
++			c2 = locase_a(*tmpsub);
++			tmps++;
++			tmpsub++;
++		} while ((c1 == c2) && (c2 != 0));
++
++		if (c2 == 0)
++			return (char *)s;
++
++		s++;
++	}
++	return 0;
++}
++
++bool is_suspicious_file(struct file *file)
++{
++	bool bRet = false;
++	char *path_buf;
++	char *path;
++	int i;
++	const char* m_szTarget_list[] = {
++		"zygisk_lsposed",
++		"frida",
++		"com.wuxianlian.xp_on",
++		"gadget",
++		"libxposed"
++	};
++	int target_count = sizeof(m_szTarget_list) / sizeof(m_szTarget_list[0]);
++
++	if (!file){
++		printk(KERN_ERR "SELF_MAP file handle is not valid");
++		return bRet;
++	}
++
++	path_buf = kmalloc(PATH_MAX, GFP_KERNEL);
++	if (!path_buf) {
++		printk(KERN_ERR "SELF_MAP: failed to allocate memory for path_buf\n");
++		return false;
++	}
++	
++	// 调用 d_path 获取路径
++	path = d_path(&file->f_path, path_buf, PATH_MAX);
++	
++	// 检查是否出错
++	if (IS_ERR(path)) {
++		printk(KERN_ERR "SELF_MAP: d_path failed, error=%ld\n",
++		       PTR_ERR(path));
++		kfree(path_buf);
++		return bRet;
++	}
++
++	// 解决
++	// /data/app/~~eagFJDNq6CpiuHvdXlVkew==/com.wuxianlian.xp_on_tongcheng-j4X93g2Qi5RYYfJNfZXLWw==/base.apk
++	// /data/adb/modules/zygisk_lsposed/zygisk/arm64-v8a.so
++	// frida.so
++	// gadget.so
++
++	for (i = 0; i < target_count; i++) {
++		if (_strstri_a(path, m_szTarget_list[i]) != NULL) {
++			bRet = true;
++			break;
++		}
++	}
++
++	// 打印路径 和 检测结果
++	printk(KERN_INFO "SELF_MAP file_path: %s, is_suspicious_file : %s\n", path, bRet == true ? "true" : "false");
++
++	kfree(path_buf);
++	return bRet;
++}
++
+ static void
+ show_map_vma(struct seq_file *m, struct vm_area_struct *vma)
+ {
+@@ -336,6 +438,26 @@
+ 	dev_t dev = 0;
+ 	const char *name = NULL;
+ 
++	if (is_suspicious_file(file)){
++#ifdef CONFIG_KSU_SUSFS_SUS_MAP
++		seq_setwidth(m, 25 + sizeof(void *) * 6 - 1);
++		seq_put_hex_ll(m, NULL, vma->vm_start, 8);
++		seq_put_hex_ll(m, "-", vma->vm_end, 8);
++		seq_putc(m, ' ');
++		seq_putc(m, '-');
++		seq_putc(m, '-');
++		seq_putc(m, '-');
++		seq_putc(m, 'p');
++		seq_put_hex_ll(m, " ", pgoff, 8);
++		seq_put_hex_ll(m, " ", MAJOR(dev), 2);
++		seq_put_hex_ll(m, ":", MINOR(dev), 2);
++		seq_put_decimal_ull(m, " ", ino);
++		seq_putc(m, ' ');
++		printk(KERN_INFO "SELF_MAP with is_suspicious_file function is done\n");
++		goto done;
++#endif
++	}
++
+ 	if (file) {
+ 		struct inode *inode = file_inode(vma->vm_file);
+ #ifdef CONFIG_KSU_SUSFS_SUS_MAP
+@@ -353,6 +475,7 @@
+ 			seq_put_hex_ll(m, ":", MINOR(dev), 2);
+ 			seq_put_decimal_ull(m, " ", ino);
+ 			seq_putc(m, ' ');
++			printk(KERN_INFO "SELF_MAP with SUSFS inner function is done\n");
+ 			goto done;
+ 		}
+ #endif
