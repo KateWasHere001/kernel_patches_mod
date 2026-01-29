@@ -1,0 +1,86 @@
+--- a/kernel/ksud.c	2026-01-29 21:46:38.934338182 +0800
++++ b/kernel/ksud.c	2026-01-29 21:35:25.542920017 +0800
+@@ -479,11 +479,6 @@
+ 		}
+ 	}
+ 
+-#ifdef CONFIG_KSU_SUSFS
+-    // - We need to run ksu_handle_execveat_init() at the very end in case the above checks are skipped
+-    (void)ksu_handle_execveat_init(filename);
+-#endif // #ifdef CONFIG_KSU_SUSFS
+-
+ 	return 0;
+ }
+ 
+@@ -644,23 +639,45 @@
+ {
+ 	unregister_kprobe(&input_event_kp);
+ }
++#endif // #ifndef CONFIG_KSU_SUSFS
++
++#ifdef CONFIG_KSU_SUSFS
++void ksu_handle_vfs_fstat(int fd, loff_t *kstat_size_ptr) {
++    loff_t new_size = *kstat_size_ptr + ksu_rc_len;
++    struct file *file = fget(fd);
++
++    if (!file)
++        return;
++
++    if (is_init_rc(file)) {
++        pr_info("stat init.rc");
++        pr_info("adding ksu_rc_len: %lld -> %lld", *kstat_size_ptr, new_size);
++        *kstat_size_ptr = new_size;
++    }
++    fput(file);
++}
++#endif // #ifdef CONFIG_KSU_SUSFS
+ 
+ static void stop_init_rc_hook()
+ {
++#ifndef CONFIG_KSU_SUSFS
+ 	bool ret = schedule_work(&stop_init_rc_hook_work);
+ 	pr_info("unregister init_rc_hook kprobe: %d!\n", ret);
++#else
++    ksu_init_rc_hook = false;
++    pr_info("stop init_rc_hook\n");
++#endif // #ifndef CONFIG_KSU_SUSFS
+ }
+ 
+ static void stop_execve_hook()
+ {
+-#ifdef CONFIG_KSU_SUSFS
+-    if (!ksu_input_hook) {
+-        return 0;
+-    }
+-#endif // #ifdef CONFIG_KSU_SUSFS
+-
++#ifndef CONFIG_KSU_SUSFS
+ 	bool ret = schedule_work(&stop_execve_hook_work);
+ 	pr_info("unregister execve kprobe: %d!\n", ret);
++#else
++    ksu_execveat_hook = false;
++    pr_info("stop execve_hook\n");
++#endif // #ifndef CONFIG_KSU_SUSFS
+ }
+ 
+ static void stop_input_hook()
+--- a/kernel/sucompat.c	2026-01-29 21:46:38.942338223 +0800
++++ b/kernel/sucompat.c	2026-01-29 21:27:12.916428510 +0800
+@@ -75,7 +75,6 @@
+ 	static const char ksud_path[] = KSUD_PATH;
+ 
+ 	return userspace_stack_buffer(ksud_path, sizeof(ksud_path));
+-#ifndef CONFIG_KSU_SUSFS
+ }
+ 
+ #ifndef CONFIG_KSU_SUSFS
+--- a/kernel/supercalls.c	2026-01-29 21:46:38.942338223 +0800
++++ b/kernel/supercalls.c	2026-01-29 21:30:40.593479666 +0800
+@@ -378,7 +378,6 @@
+ }
+ 
+ static int do_manage_mark(void __user *arg)
+-#ifndef CONFIG_KSU_SUSFS
+ {
+ 	struct ksu_manage_mark_cmd cmd;
+ 	int ret = 0;
