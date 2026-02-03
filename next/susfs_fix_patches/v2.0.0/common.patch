@@ -291,12 +291,12 @@
 @@ -413,10 +430,19 @@
  			}
  		}
- 		break;
 +#else
 +        if (cmd.pid != 0) {
 +            return ret;
 +        }
 +#endif // #ifndef CONFIG_KSU_SUSFS
+ 		break;
  	}
  	case KSU_MARK_REFRESH: {
 +#ifndef CONFIG_KSU_SUSFS
