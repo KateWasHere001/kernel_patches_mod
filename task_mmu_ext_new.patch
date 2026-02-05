@@ -1,0 +1,83 @@
+--- a/fs/proc/task_mmu.c	2026-01-30 19:57:47.371741435 +0800
++++ b/fs/proc/task_mmu.c	2026-01-30 20:18:45.022056109 +0800
+@@ -324,6 +324,56 @@
+ extern void susfs_sus_ino_for_show_map_vma(unsigned long ino, dev_t *out_dev, unsigned long *out_ino);
+ #endif
+ 
++#ifdef CONFIG_KSU_SUSFS_SUS_MAP
++
++// 敏感关键词列表
++static const char *sensitive_keywords[] = {
++    "lsposed",
++    "xposed", 
++    "libstagefright",
++    "kernelsu",
++    "ksu",
++    "gadget",
++    "zygisk",
++    "com.wuxianlian",
++    "/data/adb/modules",
++    NULL
++};
++
++// 检查路径是否包含敏感关键词
++static bool susfs_path_contains_sensitive_keyword(struct file *file)
++{
++    char *path_buf, *file_path;
++    bool contains = false;
++    int i;
++    
++    if (!file)
++        return false;
++    
++    path_buf = kmalloc(PATH_MAX, GFP_ATOMIC);
++    if (!path_buf)
++        return false;
++    
++    file_path = d_path(&file->f_path, path_buf, PATH_MAX);
++    if (IS_ERR(file_path)) {
++        kfree(path_buf);
++        return false;
++    }
++    
++    // 转换为小写以进行不区分大小写的匹配
++    // 或者使用 strcasestr (如果可用)
++    for (i = 0; sensitive_keywords[i] != NULL; i++) {
++        if (strstr(file_path, sensitive_keywords[i])) {
++            contains = true;
++            break;
++        }
++    }
++    
++    kfree(path_buf);
++    return contains;
++}
++
++#endif
+ static void
+ show_map_vma(struct seq_file *m, struct vm_area_struct *vma)
+ {
+@@ -339,7 +389,22 @@
+ 	if (file) {
+ 		struct inode *inode = file_inode(vma->vm_file);
+ #ifdef CONFIG_KSU_SUSFS_SUS_MAP
+-		if (unlikely(inode->i_mapping->flags & BIT_SUS_MAPS) && susfs_is_current_proc_umounted()) {
++		bool should_hide = false;
++
++		// 首先检查 inode 标志
++		if (unlikely(inode->i_mapping->flags & BIT_SUS_MAPS)) {
++			should_hide = true;
++		}
++		// 只有在未设置标志时才检查路径
++		else if (susfs_path_contains_sensitive_keyword(file)) {
++			should_hide = true;
++			
++			// 使用自旋锁保护标志位修改（BIT_SUS_MAPS 是位掩码）
++			//spin_lock(&inode->i_lock);
++			//inode->i_mapping->flags |= BIT_SUS_MAPS;
++			//spin_unlock(&inode->i_lock);
++		}
++		if (should_hide && susfs_is_current_proc_umounted()) {
+ 			seq_setwidth(m, 25 + sizeof(void *) * 6 - 1);
+ 			seq_put_hex_ll(m, NULL, vma->vm_start, 8);
+ 			seq_put_hex_ll(m, "-", vma->vm_end, 8);
