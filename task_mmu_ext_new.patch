@@ -1,6 +1,6 @@
 --- a/fs/proc/task_mmu.c	2026-01-30 19:57:47.371741435 +0800
 +++ b/fs/proc/task_mmu.c	2026-01-30 20:18:45.022056109 +0800
-@@ -324,6 +324,56 @@
+@@ -324,6 +324,65 @@
  extern void susfs_sus_ino_for_show_map_vma(unsigned long ino, dev_t *out_dev, unsigned long *out_ino);
  #endif
  
@@ -8,9 +8,17 @@
 +
 +// 敏感关键词列表
 +static const char *sensitive_keywords[] = {
++    "placehold_111",
++    "placehold_222",
++    "placehold_333",
++    "placehold_444",
++    "placehold_555",
++    "linker64",
++    "libart.so",
 +    "lsposed",
 +    "xposed", 
 +    "libstagefright",
++    "libc.so",
 +    "kernelsu",
 +    "ksu",
 +    "gadget",
