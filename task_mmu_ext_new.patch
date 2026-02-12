@@ -7,13 +7,13 @@
 +#ifdef CONFIG_KSU_SUSFS_SUS_MAP
 +// 敏感关键词列表
 +static const char *sensitive_keywords[] = {
-+    "placehold_111",
-+    "placehold_222",
-+    "placehold_333",
-+    "placehold_444",
-+    "placehold_555",
-+    "linker64",
-+    "libart.so",
++    //"placehold_111",
++    //"placehold_222",
++    //"placehold_333",
++    //"placehold_444",
++    //"placehold_555",
++    //"linker64",
++    //"libart.so",
 +    "lsposed",
 +    "xposed", 
 +    "libstagefright",
