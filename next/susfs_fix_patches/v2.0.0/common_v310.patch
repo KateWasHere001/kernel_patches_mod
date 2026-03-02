@@ -1,5 +1,5 @@
---- a/kernel/apk_sign.c	2026-02-28 19:15:36.118273863 +0800
---- b/kernel/apk_sign.c	2026-02-28 17:54:47.472299123 +0800
+--- a/kernel/apk_sign.c	2026-03-02 10:49:08.712785367 +0800
+--- b/kernel/apk_sign.c	2026-03-02 10:46:56.192415877 +0800
 @@ -18,6 +18,10 @@
  #include "app_profile.h"
  #include "klog.h" // IWYU pragma: keep
@@ -25,9 +25,9 @@
 +			|| check_v2_signature(path, 0x338, "f26471a28031130362bce7eebffb9a0b8afc3095f163ce0c75a309f03b644a1f") // pershoot Manager
 +			|| check_v2_signature(path, 0x381, "52d52d8c8bfbe53dc2b6ff1c613184e2c03013e090fe8905d8e3d5dc2658c2e4")); // Wild_KSU Manager
  }
---- a/kernel/Kbuild	2026-02-28 19:15:36.998276331 +0800
---- b/kernel/Kbuild	2026-02-28 17:54:47.472299123 +0800
-@@ -89,4 +89,14 @@
+--- a/kernel/Kbuild	2026-03-02 10:49:09.520787630 +0800
+--- b/kernel/Kbuild	2026-03-02 10:30:56.645784942 +0800
+@@ -89,4 +89,13 @@
  ccflags-y += -Wno-strict-prototypes -Wno-int-conversion -Wno-gcc-compat -Wno-missing-prototypes
  ccflags-y += -Wno-declaration-after-statement -Wno-unused-function -Wno-unused-variable
  
@@ -40,11 +40,10 @@
 +$(info -- You have not integrated susfs in your kernel yet.)
 +$(info -- Read: https://gitlab.com/simonpunk/susfs4ksu)
 +endif
-+
  # Keep a new line here!! Because someone may append config
---- a/kernel/ksu.c	2026-02-28 19:15:36.998276331 +0800
---- b/kernel/ksu.c	2026-02-28 17:54:47.472299123 +0800
-@@ -45,14 +45,24 @@
+--- a/kernel/ksu.c	2026-03-02 10:49:09.520787630 +0800
+--- b/kernel/ksu.c	2026-03-02 10:33:14.122182138 +0800
+@@ -45,13 +45,24 @@
  
  	ksu_supercalls_init();
  
@@ -63,14 +62,14 @@
 +#ifdef CONFIG_KSU_SUSFS
 +    susfs_init();
 +#endif // #ifdef CONFIG_KSU_SUSFS
- 
++
 +#ifndef CONFIG_KSU_SUSFS
-+	ksu_ksud_init();
++ 	ksu_ksud_init();
 +#endif // #ifndef CONFIG_KSU_SUSFS
+ 
      ksu_file_wrapper_init();
  
- #ifdef MODULE
-@@ -72,9 +82,11 @@
+@@ -72,9 +83,11 @@
  
  	ksu_observer_exit();
  
@@ -82,8 +81,8 @@
  
  	ksu_supercalls_exit();
  
---- a/kernel/ksud.c	2026-02-28 19:15:36.998276331 +0800
---- b/kernel/ksud.c	2026-02-28 17:54:47.472299123 +0800
+--- a/kernel/ksud.c	2026-03-02 10:49:09.520787630 +0800
+--- b/kernel/ksud.c	2026-03-02 10:36:47.522705675 +0800
 @@ -119,7 +119,9 @@
      ksu_boot_completed = true;
      pr_info("on_boot_completed!\n");
@@ -176,8 +175,8 @@
  	unregister_kprobe(&input_event_kp);
 +#endif // #ifndef CONFIG_KSU_SUSFS
  }
---- a/kernel/sucompat.c	2026-02-28 19:15:36.998276331 +0800
---- b/kernel/sucompat.c	2026-02-28 17:54:47.472299123 +0800
+--- a/kernel/sucompat.c	2026-03-02 10:49:09.520787630 +0800
+--- b/kernel/sucompat.c	2026-03-02 10:43:27.847825620 +0800
 @@ -75,9 +75,9 @@
  	static const char ksud_path[] = KSUD_PATH;
  
@@ -193,7 +192,7 @@
      pr_info("ksu_handle_execveat_sucompat: su found\n");
      memcpy((void *)filename->name, ksud_path, sizeof(ksud_path));
  
-+	write_sulog('x');
++    write_sulog('x');
      escape_with_root_profile();
  
      return 0;
@@ -201,7 +200,7 @@
  
      if (unlikely(!memcmp(path, su_path, sizeof(su_path)))) {
          pr_info("ksu_handle_faccessat: su->sh!\n");
-+		write_sulog('a');
++        write_sulog('a');
          *filename_user = sh_user_path();
      }
  
@@ -209,7 +208,7 @@
      }
  
      pr_info("ksu_handle_stat: su->sh!\n");
-+	write_sulog('s');
++    write_sulog('s');
      memcpy((void *)((*filename)->name), sh_path, sizeof(sh_path));
      return 0;
  }
@@ -217,24 +216,43 @@
  
      if (unlikely(!memcmp(path, su_path, sizeof(su_path)))) {
          pr_info("ksu_handle_stat: su->sh!\n");
-+		write_sulog('s');
++        write_sulog('s');
          *filename_user = sh_user_path();
      }
  
---- a/kernel/supercalls.c	2026-02-28 19:15:36.998276331 +0800
---- b/kernel/supercalls.c	2026-02-28 18:49:29.041743468 +0800
-@@ -441,10 +441,10 @@
+--- a/kernel/supercalls.c	2026-03-02 10:49:09.520787630 +0800
+--- b/kernel/supercalls.c	2026-03-02 10:47:32.452516890 +0800
+@@ -115,9 +115,6 @@
+ 			post_fs_data_lock = true;
+ 			pr_info("post-fs-data triggered\n");
+ 			on_post_fs_data();
+-#ifdef CONFIG_KSU_SUSFS
+-            susfs_start_sdcard_monitor_fn();
+-#endif // #ifdef CONFIG_KSU_SUSFS
+ 		}
+ 		break;
+ 	}
+@@ -127,6 +124,9 @@
+ 			boot_complete_lock = true;
+ 			pr_info("boot_complete triggered\n");
+ 			on_boot_completed();
++#ifdef CONFIG_KSU_SUSFS
++            susfs_start_sdcard_monitor_fn();
++#endif // #ifdef CONFIG_KSU_SUSFS
+ 		}
+ 		break;
+ 	}
+@@ -441,9 +441,9 @@
  		return -EFAULT;
  	}
  
 -#ifndef CONFIG_KSU_SUSFS
  	switch (cmd.operation) {
  	case KSU_MARK_GET: {
- 		// Get task mark status
 +#ifndef CONFIG_KSU_SUSFS
+ 		// Get task mark status
  		ret = ksu_get_task_mark(cmd.pid);
  		if (ret < 0) {
- 			pr_err("manage_mark: get failed for pid %d: %d\n", cmd.pid, ret);
 @@ -452,8 +452,19 @@
  		}
  		cmd.result = (u32)ret;
@@ -297,20 +315,67 @@
  	struct ksu_get_hook_mode_cmd cmd = {0};
  
 -	strscpy(cmd.mode, "Kprobes", sizeof(cmd.mode));
-+    strscpy(cmd.mode, "Inline (SuSFS)", sizeof(cmd.mode));
++	strscpy(cmd.mode, "Inline (SuSFS)", sizeof(cmd.mode));
  
  	if (copy_to_user(arg, &cmd, sizeof(cmd))) {
  		pr_err("get_hook_mode: copy_to_user failed\n");
-@@ -860,6 +886,8 @@
- 		}
- 	}
- 
-+    unsigned long reply = (unsigned long)*arg;
+@@ -1092,6 +1118,55 @@
+             pr_warn("install fd add task_work failed\n");
+         }
+     }
 +
- 	if (magic2 == CHANGE_MANAGER_UID) {
- 		/* only root is allowed for this command */
- 		if (current_uid().val != 0)
-@@ -1106,6 +1134,7 @@
++	unsigned long reply = (unsigned long)*arg;
++
++	if (magic2 == CHANGE_MANAGER_UID) {
++		/* only root is allowed for this command */
++		if (current_uid().val != 0)
++			return 0;
++
++		pr_info("ksu_handle_sys_reboot: ksu_set_manager_appid to: %d\n", cmd);
++		ksu_set_manager_appid(cmd);
++
++		if (cmd == ksu_get_manager_appid()) {
++			if (copy_to_user((void __user *)*arg, &reply, sizeof(reply)))
++				pr_info("ksu_handle_sys_reboot: reply fail\n");
++		}
++
++		return 0;
++	}
++
++	if (magic2 == GET_SULOG_DUMP_V2) {
++		// only root is allowed for this command
++		if (current_uid().val != 0)
++			return 0;
++
++		int ret = send_sulog_dump(*arg);
++			if (ret)
++				return 0;
++		if (copy_to_user((void __user *)*arg, &reply, sizeof(reply) ))
++			return 0;
++	}
++
++	if (magic2 == CHANGE_KSUVER) {
++		// only root is allowed for this command
++		if (current_uid().val != 0)
++			return 0;
++
++		pr_info("sys_reboot: ksu_change_ksuver to: %d\n", cmd);
++		ksuver_override = cmd;
++		if (copy_to_user((void __user *)*arg, &reply, sizeof(reply) ))
++			return 0;
++	}
++
++	if (magic2 == CHANGE_SPOOF_UNAME) {
++		// we write our error confirmation on **
++		reply = 0;
++		if (copy_to_user((void __user *)*arg, &reply, sizeof(reply) ))
++			return 0;
++	}
++
+     return 0;
+ }
+ #endif // #ifndef CONFIG_KSU_SUSFS
+@@ -1106,19 +1181,25 @@
                  ksu_ioctl_handlers[i].cmd);
      }
  
@@ -318,11 +383,11 @@
  	int rc = register_kprobe(&reboot_kp);
  	if (rc) {
  		pr_err("reboot kprobe failed: %d\n", rc);
-@@ -1113,12 +1142,17 @@
+ 	} else {
  		pr_info("reboot kprobe registered successfully\n");
  	}
- 
 +#endif // #ifndef CONFIG_KSU_SUSFS
+ 
      sulog_init_heap(); // grab heap memory
  }
  
