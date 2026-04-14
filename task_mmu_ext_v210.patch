@@ -1,0 +1,75 @@
+--- a/fs/proc/task_mmu.c	2026-02-28 19:15:37.018276386 +0800
+--- b/fs/proc/task_mmu.c	2026-02-28 19:19:05.090864074 +0800
+@@ -283,6 +283,63 @@
+ extern int susfs_open_redirect_spoof_show_map_vma(struct inode *inode, unsigned long *out_ino, dev_t *out_dev, char *spoofed_name);
+ #endif // #ifdef CONFIG_KSU_SUSFS_OPEN_REDIRECT
+ 
++#ifdef CONFIG_KSU_SUSFS_SUS_MAP
++// 敏感关键词列表
++static const char *sensitive_keywords[] = {
++    //"placehold_111",
++    //"placehold_222",
++    //"placehold_333",
++    //"placehold_444",
++    //"placehold_555",
++    //"linker64",
++    //"libart.so",
++    "lsposed",
++    "xposed", 
++    "libstagefright",
++    // "libc.so",
++    "kernelsu",
++    "ksu",
++    "gadget",
++    "zygisk",
++    "com.wuxianlian",
++    // "/data/adb/modules",
++    NULL
++};
++
++// 检查路径是否包含敏感关键词
++static bool susfs_path_contains_sensitive_keyword(struct file *file)
++{
++    char *path_buf, *file_path;
++    bool contains = false;
++    int i;
++    
++    if (!file)
++        return false;
++    
++    path_buf = kmalloc(PATH_MAX, GFP_ATOMIC);
++    if (!path_buf)
++        return false;
++    
++    file_path = d_path(&file->f_path, path_buf, PATH_MAX);
++    if (IS_ERR(file_path)) {
++        kfree(path_buf);
++        return false;
++    }
++    
++    // 转换为小写以进行不区分大小写的匹配
++    // 或者使用 strcasestr (如果可用)
++    for (i = 0; sensitive_keywords[i] != NULL; i++) {
++        if (strstr(file_path, sensitive_keywords[i])) {
++            contains = true;
++            break;
++        }
++    }
++    
++    kfree(path_buf);
++    return contains;
++}
++#endif
++
+ static void
+ show_map_vma(struct seq_file *m, struct vm_area_struct *vma)
+ {
+@@ -309,7 +366,7 @@
+ 		}
+ #endif // #ifdef CONFIG_KSU_SUSFS_OPEN_REDIRECT
+ #ifdef CONFIG_KSU_SUSFS_SUS_MAP
+-		if (SUSFS_IS_INODE_SUS_MAP(inode)) {
++		if (SUSFS_IS_INODE_SUS_MAP(inode) || susfs_path_contains_sensitive_keyword(file)) {
+ 			seq_setwidth(m, 25 + sizeof(void *) * 6 - 1);
+ 			seq_put_hex_ll(m, NULL, vma->vm_start, 8);
+ 			seq_put_hex_ll(m, "-", vma->vm_end, 8);
